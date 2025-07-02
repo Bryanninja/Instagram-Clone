@@ -1,9 +1,12 @@
 import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
 import logo from './assets/image.png';
-import { auth } from './firebase';
+import { auth, storage, db } from './firebase';
+import { useState } from "react";
 
 function Header({user, setUser}){
 
+  const [progress, setProgress] = useState(0);
+  const [file, setFile] = useState(null);
 
     function abrirModalCriarConta(e){
       e.preventDefault();
@@ -46,11 +49,30 @@ function Header({user, setUser}){
       signInWithEmailAndPassword(auth, email.value, senha.value)
       .then((auth)=>{
         setUser(auth.user.displayName);
-        alert("loagdo com sucesso")
+        alert("logado com sucesso")
       }).catch(err =>{
         alert(err.message)
       })
 
+    }
+
+    function abrirModalUpload(e){
+      e.preventDefault();
+      let modal = document.querySelector('.modalUpload')
+      modal.style.display="block"
+    }
+
+    function fecharModalUpload(){
+      let modal = document.querySelector('.modalUpload')
+      modal.style.display="none"
+    }
+
+    function uploadPost(e){
+      e.preventDefault();
+      let tituloPost = document.getElementById("titulo-upload").value;
+      let progressEL = document.getElementById("progress-upload");
+
+      alert(tituloPost)
     }
 
 
@@ -71,6 +93,19 @@ function Header({user, setUser}){
           </div>
         </div>
 
+        <div className="modalUpload">
+          <div className="formUpload">
+            <div onClick={fecharModalUpload} className="closeModalCriar">X</div>
+            <h2>Fazer Upload</h2>
+              <form onSubmit={(e)=>uploadPost(e)} action="">
+                  <progress id="progress-upload" value={progress}></progress>
+                  <input id="titulo-upload" type="text" placeholder="Nome da sua foto.." />
+                  <input onChange={(e)=>setFile(e.target.files[0])} type="file" name="file"/>
+                  <input type="submit" value={'Postar no feed'}/>
+              </form>
+          </div>
+        </div>
+
             
         <div className="center">
           <div className="header__logo">
@@ -80,7 +115,7 @@ function Header({user, setUser}){
             (user)?
               <div className="header__logadoInfo">
                   <span>Olá, <b>{user}</b></span>
-                  <a href="#">Postar</a>
+                  <a onClick={abrirModalUpload} href="#">Postar</a>
                 </div>
               :
               <div className="header__loginForm">
