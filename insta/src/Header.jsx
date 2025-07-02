@@ -1,5 +1,6 @@
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
 import logo from './assets/image.png';
+import { auth } from './firebase';
 
 function Header({user, setUser}){
 
@@ -15,8 +16,6 @@ function Header({user, setUser}){
       modal.style.display="none"
     }
 
-    const auth = getAuth();
-
     function criarConta(e){
       e.preventDefault();
       let email = document.getElementById('emailCadastro');
@@ -28,7 +27,7 @@ function Header({user, setUser}){
       .then((authUser)=>{
         const user = authUser.user;
         updateProfile(user,{
-          displayName:username
+          displayName:username.value
         })
          alert("Conta criada com sucesso!");
         let modal = document.querySelector('.modalCriarConta');
@@ -96,8 +95,6 @@ function Header({user, setUser}){
           </div>
             
           }
-
-      
 
         </div>
 
