@@ -1,142 +1,219 @@
-import { createUserWithEmailAndPassword, updateProfile, signInWithEmailAndPassword } from "firebase/auth";
-import logo from './assets/image.png';
-import { auth, storage, db } from './firebase';
 import { useState } from "react";
+import { auth, storage, db} from "./firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut} from "firebase/auth"; // import importante
 
-function Header({user, setUser}){
+function Header({ user, setUser }) {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [nome, setNome] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [imagem, setImagem] = useState(null);
 
-  const [progress, setProgress] = useState(0);
-  const [file, setFile] = useState(null);
 
-    function abrirModalCriarConta(e){
-      e.preventDefault();
-      let modal = document.querySelector('.modalCriarConta')
-      modal.style.display="block"
+  const handleCadastro = async (e)=>{
+    e.preventDefault();
+
+    try{
+        const userCredential = await createUserWithEmailAndPassword(auth, email, senha)
+        const user = userCredential.user;
+
+        await updateProfile(user,{
+            displayName:nome,
+        });
+
+        setNome(nome);
+        alert("Conta criada com sucesso")
+        document.getElementById('cadastro').reset()
+    }catch(err){
+        setErro("Erro ao criar conta" + err.message)
+    }
+  }
+
+  const handleLogin = async (e) => {
+    e.preventDefault(); // previne o recarregamento da página
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+      const user = userCredential.user;
+
+      setUser(user.displayName); // definimos o nome do usuário no App
+      setErro(""); // limpa erro
+    } catch (err) {
+      setErro("Erro ao fazer login: " + err.message);
+    }
+  };
+
+  const handleLogout = async (e) =>{
+    try{
+      await signOut(auth);
+      setUser("");
+      document.querySelector('.modalLogout').style.display = "none"
+    }catch(err){
+      alert("Erro ao deslogar " + err.message)
+    }
+  }
+
+  function abrirModal(){
+    let open = document.querySelector('.modalCriarConta');
+    open.style.display = "block";
+  }
+
+  function fecharModal(){
+    let open = document.querySelector('.modalCriarConta');
+    open.style.display = "none";
+  }
+
+  function abrirModalUpload(){
+    document.querySelector('.modalUpload').style.display = "block";
+  }
+
+  function fecharModalUpload(){
+    document.querySelector('.modalUpload').style.display = "none";
+  }
+
+  function abrirModalLogout(){
+    document.querySelector('.modalLogout').style.display = "block";
+  }
+
+  function fecharModalLogout(){
+    document.querySelector('.modalLogout').style.display = "none";
+  }
+
+  const handleUpload = async (e)=>{
+    e.preventDefault();
+
+    if(!imagem || !titulo){
+      alert("Preencha o titulo e escolha uma imagem.")
+      return;
     }
 
-    function fecharModalCriar(){
-      let modal = document.querySelector('.modalCriarConta')
-      modal.style.display="none"
+    const imagemRef = ref(storage, `imagens/${imagem.name}`);
+
+    try{
+      await uploadBytes(imagemRef, imagem);
+      const imagemUrl = await getDownloadURL(imagemRef);
+
+      await addDoc(collection(db, "posts"), {
+        titulo:titulo,
+        imagem: imagemUrl,
+        userName: user,
+        timestamp: serverTimestamp(),
+      });
+
+      alert("Post enviado com sucesso!");
+      setTitulo("");
+      setImagem(null)
+      document.querySelector('.modalUpload').style.display ="none"
+    }catch(err){
+      alert("Erro ao Fazer Upload " + err.message);
     }
+  }
 
-    function criarConta(e){
-      e.preventDefault();
-      let email = document.getElementById('emailCadastro');
-      let username = document.getElementById('usernameCadastro')
-      let senha = document.getElementById('senhaCadastro')
+  return (
 
-      //criar conta firebase
-      createUserWithEmailAndPassword(auth, email.value, senha.value)
-      .then((authUser)=>{
-        const user = authUser.user;
-        updateProfile(user,{
-          displayName:username.value
-        })
-         alert("Conta criada com sucesso!");
-        let modal = document.querySelector('.modalCriarConta');
-        modal.style.display="none";
-      }).catch(err =>{
-        alert(err.message);
-      })
-    }
+    <div className="header">
+  <div className="center">
+    
+    <div className="header__logo">
+      <img
+        src="https://www.instagram.com/static/images/web/mobile_nav_type_logo.png/735145cfe0a4.png"
+        alt="Instagram Logo"/>
+    </div>
+      
+      
+        {
+           user ?(
+            <div className="header__logadoInfo">
+            <span>Olá, <b>{user}</b></span>
+            <a onClick={abrirModalUpload} href="#">Postar</a>
+            <a onClick={abrirModalLogout}>Deslogar</a>
+          </div>    
+            ):(
+        <form className="header__loginForm" onSubmit={handleLogin}>
+            <input
+            type="text"
+            placeholder="E-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            />
+            <input
+            type="password"
+            placeholder="Senha"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            />
+            <input type="submit" value="Login" />
+            <a onClick={abrirModal} href="#">Criar conta</a>
+            {erro && <p style={{ color: "red" }}>{erro}</p>}
+        </form>
+            )}
+        
+    </div>
 
-    function logar(e){
-      e.preventDefault();
+    <div className="modalLogout">
+      <div className="logoutOptions">
+        <h2>Tem certeza?</h2>
+        <button name="sair" onClick={handleLogout}>Sair</button>
+        <button name="cancelar" onClick={fecharModalLogout}>Cancelar</button>
+      </div>
+    </div>
 
-      let email = document.getElementById('email-login');
-      let senha = document.getElementById('senha-login');
+    
+    <div className="modalCriarConta">
+      <form className="formCriarConta" onSubmit={handleCadastro}>
+        <h2>Criar Conta</h2>
+        
+        <div onClick={fecharModal} className="closeModalCriar">X</div>
+        <input
+          type="text"
+          placeholder="Nome de usuário"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="E-mail"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Senha"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+        />
+        <input type="submit" value="Cadastrar" />
+      </form>
+    </div>
 
-      signInWithEmailAndPassword(auth, email.value, senha.value)
-      .then((auth)=>{
-        setUser(auth.user.displayName);
-        alert("logado com sucesso")
-      }).catch(err =>{
-        alert(err.message)
-      })
+    <div className="modalUpload">
+      <form className="formUpload" onSubmit={handleUpload}>
+        <h2>Fazer Postagem</h2>
+        <div onClick={fecharModalUpload} className="fecharModalUpload">X</div>
 
-    }
+          <input
+            type="text"
+            placeholder="Título do Post"
+            value={titulo}
+            onChange={(e)=> setTitulo(e.target.value)}/>
 
-    function abrirModalUpload(e){
-      e.preventDefault();
-      let modal = document.querySelector('.modalUpload')
-      modal.style.display="block"
-    }
+          <input
+            type="file"
+            onChange={(e)=> setImagem(e.target.files[0])}/>
 
-    function fecharModalUpload(){
-      let modal = document.querySelector('.modalUpload')
-      modal.style.display="none"
-    }
+          <input type="submit"  value={"Postar"}/>
+      </form>
+    </div>
 
-    function uploadPost(e){
-      e.preventDefault();
-      let tituloPost = document.getElementById("titulo-upload").value;
-      let progressEL = document.getElementById("progress-upload");
-
-      alert(tituloPost)
-    }
-
-
-    return(
-
-      <div className="header">
-
-        <div className="modalCriarConta">
-          <div className="formCriarConta">
-            <div onClick={fecharModalCriar} className="closeModalCriar">X</div>
-            <h2>Criar Conta</h2>
-              <form onSubmit={(e)=>criarConta(e)} action="">
-                  <input id="emailCadastro" type="text" placeholder="Seu Email.." />
-                  <input id="usernameCadastro" type="text" placeholder="Seu Username.." />
-                  <input id="senhaCadastro" type="password" placeholder="Sua Senha.." />
-                  <input type="submit" value={'Criar conta'}/>
-              </form>
-          </div>
-        </div>
-
-        <div className="modalUpload">
-          <div className="formUpload">
-            <div onClick={fecharModalUpload} className="closeModalCriar">X</div>
-            <h2>Fazer Upload</h2>
-              <form onSubmit={(e)=>uploadPost(e)} action="">
-                  <progress id="progress-upload" value={progress}></progress>
-                  <input id="titulo-upload" type="text" placeholder="Nome da sua foto.." />
-                  <input onChange={(e)=>setFile(e.target.files[0])} type="file" name="file"/>
-                  <input type="submit" value={'Postar no feed'}/>
-              </form>
-          </div>
-        </div>
-
-            
-        <div className="center">
-          <div className="header__logo">
-            <img src={logo} alt="Logo" />
-          </div>
-          {
-            (user)?
-              <div className="header__logadoInfo">
-                  <span>Olá, <b>{user}</b></span>
-                  <a onClick={abrirModalUpload} href="#">Postar</a>
-                </div>
-              :
-              <div className="header__loginForm">
-            <form onSubmit={(e)=>logar(e)}>
-              <input id="email-login" type="text" placeholder="Login.." />
-              <input id="senha-login" type="password" placeholder="Senha.." />
-              <input type="submit" name="acao" value="Logar" />
-            </form>
-            <div className="btn__criarConta">
-              <a onClick={(e)=>abrirModalCriarConta(e)} href="#">Criar Conta!</a>
-            </div>
-          </div>
-            
-          }
-
-        </div>
-
+  
 </div>
 
 
-    );
+
+  );
 }
 
 export default Header;
